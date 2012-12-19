@@ -13,6 +13,5 @@
 		<f:entry title="Application password" field="password">
 			<f:textbox />
 		</f:entry>
-
 	</f:section>
 </j:jelly>

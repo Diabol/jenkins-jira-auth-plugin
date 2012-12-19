@@ -31,7 +31,7 @@ public class JiraAuthRealm extends AbstractPasswordBasedSecurityRealm {
     private String username;
     private String password;
 
-    private CrowdClient crowdClient;
+    private transient CrowdClient crowdClient;
 
 
     @DataBoundConstructor
@@ -39,20 +39,7 @@ public class JiraAuthRealm extends AbstractPasswordBasedSecurityRealm {
         this.jiraUrl = jiraUrl;
         this.username = username;
         this.password = password;
-        LOG.info("JiraAuthRealm created");
-        final Properties properties = new Properties();
-        properties.setProperty("crowd.server.url", "http://jira.receptpartner.se");
-        properties.setProperty("application.name", "jenkins");
-        properties.setProperty("application.password", "jenkins");
-        properties.setProperty("session.validationinterval", "5");
-
-        final ClientProperties clientProperties = ClientPropertiesImpl.newInstanceFromProperties(properties);
-        final RestCrowdClientFactory restCrowdFactory = new RestCrowdClientFactory();
-        crowdClient = restCrowdFactory.newInstance(clientProperties);
-
-
     }
-
 
     public String getJiraUrl() {
         return jiraUrl;
@@ -81,7 +68,7 @@ public class JiraAuthRealm extends AbstractPasswordBasedSecurityRealm {
     @Override
     protected UserDetails authenticate(String username, String password) throws AuthenticationException {
         try {
-            crowdClient.authenticateUser(username, password);
+            getCrowdClient().authenticateUser(username, password);
             UserDetails userDetails = loadUserByUsername(username);
             LOG.info("User " + username + " successfully logged in");
             return userDetails;
@@ -107,7 +94,7 @@ public class JiraAuthRealm extends AbstractPasswordBasedSecurityRealm {
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException, DataAccessException {
         try {
-            List<String> groupNames = crowdClient.getNamesOfGroupsForUser(username, 0, 1000);
+            List<String> groupNames = getCrowdClient().getNamesOfGroupsForUser(username, 0, 1000);
             return new JiraUserDetails(username, null, groupNames);
         } catch (OperationFailedException e) {
             throw new DataAccessResourceFailureException("OperationFailed", e);
@@ -123,7 +110,7 @@ public class JiraAuthRealm extends AbstractPasswordBasedSecurityRealm {
     @Override
     public GroupDetails loadGroupByGroupname(String groupname) throws UsernameNotFoundException, DataAccessException {
         try {
-            final Group group = crowdClient.getGroup(groupname);
+            final Group group = getCrowdClient().getGroup(groupname);
             return new GroupDetails() {
                 @Override
                 public String getName() {
@@ -146,13 +133,27 @@ public class JiraAuthRealm extends AbstractPasswordBasedSecurityRealm {
         return false;
     }
 
+    private synchronized CrowdClient getCrowdClient() {
+        if (crowdClient == null) {
+            final Properties properties = new Properties();
+            properties.setProperty("crowd.server.url", jiraUrl);
+            properties.setProperty("application.name", username);
+            properties.setProperty("application.password", password);
+            properties.setProperty("session.validationinterval", "5");
+
+            final ClientProperties clientProperties = ClientPropertiesImpl.newInstanceFromProperties(properties);
+            final RestCrowdClientFactory restCrowdFactory = new RestCrowdClientFactory();
+            crowdClient = restCrowdFactory.newInstance(clientProperties);
+        }
+        return crowdClient;
+    }
 
     @Extension
     public static final class DescriptorImpl extends Descriptor<SecurityRealm> {
 
         @Override
         public String getDisplayName() {
-            return "Jira Security Realm";
+            return "Jira Security Realm uses Jira as the User database";
         }
 
     }
