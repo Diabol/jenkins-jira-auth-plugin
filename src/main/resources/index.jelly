@@ -2,5 +2,5 @@
   This view is used to render the installed plugins page.
 -->
 <div>
- This plugin allows Jenkins to use Jira as the User database
+ This plugin allows Jenkins to use Jira as the User Server for authentication
 </div>

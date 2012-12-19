@@ -4,13 +4,13 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
 	<f:section title="Global Jira Auth Settings" >
-		<f:entry title="Jira URL" field="jiraUrl">
-			<f:textbox default="http://jira.example.com" />
+		<f:entry title="Jira URL" field="jiraUrl" help="/plugin/jira-auth/help/url-help.html">
+			<f:textbox default="http://jira.example.com"/>
 		</f:entry>
-		<f:entry title="Application username" field="username">
+		<f:entry title="Application username" field="username" help="/plugin/jira-auth/help/username-password-help.html">
 			<f:textbox />
 		</f:entry>
-		<f:entry title="Application password" field="password">
+		<f:entry title="Application password" field="password" help="/plugin/jira-auth/help/username-password-help.html">
 			<f:textbox />
 		</f:entry>
 	</f:section>
