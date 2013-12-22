@@ -3,6 +3,7 @@ package se.diabol.jenkins.plugins;
 import com.atlassian.crowd.exception.*;
 import com.atlassian.crowd.integration.rest.service.factory.RestCrowdClientFactory;
 import com.atlassian.crowd.model.group.Group;
+import com.atlassian.crowd.model.user.User;
 import com.atlassian.crowd.service.client.ClientProperties;
 import com.atlassian.crowd.service.client.ClientPropertiesImpl;
 import com.atlassian.crowd.service.client.CrowdClient;
@@ -11,10 +12,13 @@ import hudson.model.Descriptor;
 import hudson.security.AbstractPasswordBasedSecurityRealm;
 import hudson.security.GroupDetails;
 import hudson.security.SecurityRealm;
+import hudson.util.Secret;
+import net.sf.json.JSONObject;
 import org.acegisecurity.*;
 import org.acegisecurity.userdetails.UserDetails;
 import org.acegisecurity.userdetails.UsernameNotFoundException;
 import org.kohsuke.stapler.DataBoundConstructor;
+import org.kohsuke.stapler.StaplerRequest;
 import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DataAccessResourceFailureException;
 
@@ -29,40 +33,24 @@ public class JiraAuthRealm extends AbstractPasswordBasedSecurityRealm {
 
     private String jiraUrl;
     private String username;
-    private String password;
+    private Secret password;
 
     private transient CrowdClient crowdClient;
 
 
     @DataBoundConstructor
-    public JiraAuthRealm(String jiraUrl, String username, String password) {
+    public JiraAuthRealm(String jiraUrl, String username, Secret password) {
         this.jiraUrl = jiraUrl;
         this.username = username;
         this.password = password;
-    }
-
-    public String getJiraUrl() {
-        return jiraUrl;
-    }
-
-    public void setJiraUrl(String jiraUrl) {
-        this.jiraUrl = jiraUrl;
     }
 
     public String getUsername() {
         return username;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
+    public String getEncryptedPassword() {
+        return password.getEncryptedValue();
     }
 
     @Override
@@ -95,7 +83,8 @@ public class JiraAuthRealm extends AbstractPasswordBasedSecurityRealm {
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException, DataAccessException {
         try {
             List<String> groupNames = getCrowdClient().getNamesOfGroupsForUser(username, 0, 1000);
-            return new JiraUserDetails(username, null, groupNames);
+            User user = getCrowdClient().getUser(username);
+            return new JiraUserDetails(username, null, user.isActive(), groupNames);
         } catch (OperationFailedException e) {
             throw new DataAccessResourceFailureException("OperationFailed", e);
         } catch (InvalidAuthenticationException e) {
@@ -128,6 +117,8 @@ public class JiraAuthRealm extends AbstractPasswordBasedSecurityRealm {
         }
     }
 
+
+
     @Override
     public boolean allowsSignup() {
         return false;
@@ -138,7 +129,7 @@ public class JiraAuthRealm extends AbstractPasswordBasedSecurityRealm {
             final Properties properties = new Properties();
             properties.setProperty("crowd.server.url", jiraUrl);
             properties.setProperty("application.name", username);
-            properties.setProperty("application.password", password);
+            properties.setProperty("application.password", password.getPlainText());
             properties.setProperty("session.validationinterval", "5");
 
             final ClientProperties clientProperties = ClientPropertiesImpl.newInstanceFromProperties(properties);
@@ -156,6 +147,14 @@ public class JiraAuthRealm extends AbstractPasswordBasedSecurityRealm {
             return "Jira Security Realm uses Jira as the User database";
         }
 
+        @Override
+        public SecurityRealm newInstance(StaplerRequest sr, JSONObject formData) throws FormException {
+            String username = sr.getParameter("username");
+            String password = sr.getParameter("password");
+            String jiraUrl = sr.getParameter("jiraUrl");
+            return new JiraAuthRealm(jiraUrl, username, Secret.fromString(password));
+
+        }
     }
 
 

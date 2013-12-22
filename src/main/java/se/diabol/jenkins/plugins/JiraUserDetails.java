@@ -12,12 +12,14 @@ public class JiraUserDetails implements UserDetails {
     private String password;
 
     private List<String> groupNames;
+    private boolean active;
 
 
-    public JiraUserDetails(String username, String password, List<String> groupNames) {
+    public JiraUserDetails(String username, String password, boolean active, List<String> groupNames) {
         this.username = username;
         this.password = password;
         this.groupNames = groupNames;
+        this.active = active;
     }
 
     public GrantedAuthority[] getAuthorities() {
@@ -50,6 +52,6 @@ public class JiraUserDetails implements UserDetails {
     }
 
     public boolean isEnabled() {
-        return true;
+        return active;
     }
 }
